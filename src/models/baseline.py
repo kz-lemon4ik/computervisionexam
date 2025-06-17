@@ -6,6 +6,10 @@ import numpy as np
 import argparse
 import time
 from pathlib import Path
+import sys
+sys.path.append('src')
+from utils.metrics import MetricsTracker
+from utils.config import TRAIN_CONFIG, MODEL_CONFIG
 
 class SyntheticDataset(Dataset):
     """Simple synthetic dataset for baseline training"""
@@ -86,7 +90,7 @@ class Trainer:
     def train_epoch(self, dataloader):
         """Train one epoch"""
         self.model.train()
-        total_loss = 0
+        metrics = MetricsTracker()
         
         for batch_idx, (images, labels) in enumerate(dataloader):
             images, labels = images.to(self.device), labels.to(self.device)
@@ -102,31 +106,27 @@ class Trainer:
             loss.backward()
             self.optimizer.step()
             
-            total_loss += loss.item()
+            # Update metrics
+            metrics.update(outputs, labels, loss.item())
             
             if batch_idx % 10 == 0:
-                print(f'Batch {batch_idx}, Loss: {loss.item():.4f}')
+                print(f'Batch {batch_idx}: {metrics.get_summary()}')
         
-        return total_loss / len(dataloader)
+        return metrics.compute()['avg_loss']
     
     def evaluate(self, dataloader):
         """Evaluate model"""
         self.model.eval()
-        correct = 0
-        total = 0
+        metrics = MetricsTracker()
         
         with torch.no_grad():
             for images, labels in dataloader:
                 images, labels = images.to(self.device), labels.to(self.device)
                 outputs = self.model(images)
-                predicted = torch.argmax(outputs, dim=2)
-                
-                # All characters must be correct
-                batch_correct = (predicted == labels).all(dim=1).sum().item()
-                correct += batch_correct
-                total += labels.size(0)
+                metrics.update(outputs, labels)
         
-        return 100 * correct / total
+        eval_metrics = metrics.compute()
+        return eval_metrics['sequence_accuracy'] * 100
     
     def train(self, train_loader, val_loader, epochs=5):
         """Full training loop"""
