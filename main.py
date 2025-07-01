@@ -13,6 +13,7 @@ from pathlib import Path
 
 sys.path.append('src')
 from models.baseline import BaselineCNN
+from pipeline import create_pipeline
 
 class LicensePlateRecognizer:
     """Main pipeline for license plate recognition"""
@@ -109,22 +110,42 @@ def main():
     parser.add_argument('--demo', action='store_true', help='Run demo mode')
     parser.add_argument('--model', type=str, default='models/baseline_model.pth', 
                       help='Model path')
+    parser.add_argument('--use_pipeline', action='store_true', 
+                      help='Use integrated pipeline')
     args = parser.parse_args()
     
     print("License Plate Recognition Pipeline")
     print("=" * 40)
     
-    recognizer = LicensePlateRecognizer(model_path=args.model)
+    if args.use_pipeline:
+        print("Using integrated pipeline (YOLOv5 + PDLPR + Baseline)")
+        pipeline = create_pipeline(baseline_model=args.model)
+        recognizer = None
+    else:
+        print("Using baseline recognizer")
+        recognizer = LicensePlateRecognizer(model_path=args.model)
+        pipeline = None
     
     if args.demo:
         print("Running demo mode...")
         demo_image = create_demo_image()
-        plate_text, confidence, info = recognizer.recognize_plate(demo_image)
         
-        print(f"Input: {demo_image}")
-        print(f"Detected: {plate_text}")
-        print(f"Confidence: {confidence:.2%}")
-        print(f"Characters: {info.get('characters', [])}")
+        if pipeline:
+            results = pipeline.detect_and_recognize(demo_image)
+            print(f"Input: {demo_image}")
+            if results:
+                for result in results:
+                    print(f"Detected: {result['plate_text']}")
+                    print(f"Confidence: {result['recognition_confidence']:.2%}")
+                    print(f"Method: {result['method']}")
+            else:
+                print("No plates detected")
+        else:
+            plate_text, confidence, info = recognizer.recognize_plate(demo_image)
+            print(f"Input: {demo_image}")
+            print(f"Detected: {plate_text}")
+            print(f"Confidence: {confidence:.2%}")
+            print(f"Characters: {info.get('characters', [])}")
         
     elif args.input:
         input_path = Path(args.input)
@@ -133,26 +154,52 @@ def main():
             return
         
         print(f"Processing: {input_path}")
-        plate_text, confidence, info = recognizer.recognize_plate(input_path)
         
-        if plate_text:
-            print(f"Result: {plate_text}")
-            print(f"Confidence: {confidence:.2%}")
-            
-            if args.output:
-                output_path = Path(args.output)
-                output_path.parent.mkdir(parents=True, exist_ok=True)
-                with open(output_path, 'w', encoding='utf-8') as f:
-                    f.write(f"{plate_text}\n")
-                print(f"Saved to: {output_path}")
+        if pipeline:
+            results = pipeline.detect_and_recognize(input_path)
+            if results:
+                for result in results:
+                    plate_text = result['plate_text']
+                    confidence = result['recognition_confidence']
+                    method = result['method']
+                    
+                    print(f"Result: {plate_text}")
+                    print(f"Confidence: {confidence:.2%}")
+                    print(f"Method: {method}")
+                    
+                    if args.output:
+                        output_path = Path(args.output)
+                        output_path.parent.mkdir(parents=True, exist_ok=True)
+                        with open(output_path, 'w', encoding='utf-8') as f:
+                            f.write(f"{plate_text}\n")
+                            f.write(f"Confidence: {confidence:.2%}\n")
+                            f.write(f"Method: {method}\n")
+                        print(f"Saved to: {output_path}")
+            else:
+                print("No plates detected")
         else:
-            print("Recognition failed")
+            plate_text, confidence, info = recognizer.recognize_plate(input_path)
+            
+            if plate_text:
+                print(f"Result: {plate_text}")
+                print(f"Confidence: {confidence:.2%}")
+                
+                if args.output:
+                    output_path = Path(args.output)
+                    output_path.parent.mkdir(parents=True, exist_ok=True)
+                    with open(output_path, 'w', encoding='utf-8') as f:
+                        f.write(f"{plate_text}\n")
+                    print(f"Saved to: {output_path}")
+            else:
+                print("Recognition failed")
     
     else:
         print("Usage:")
         print("  python main.py --demo")
+        print("  python main.py --demo --use_pipeline")
         print("  python main.py --input car.jpg")
-        print("  python main.py --input car.jpg --output result.txt")
+        print("  python main.py --input car.jpg --use_pipeline")
+        print("  python main.py --input car.jpg --output result.txt --use_pipeline")
 
 if __name__ == "__main__":
     main()
