@@ -14,6 +14,7 @@ from detection.yolo_model import YOLOv5Detector
 from recognition.pdlpr_model import create_pdlpr_model, PDLPRTrainer
 from models.baseline import BaselineCNN, Trainer
 from utils.config import ALL_CHARS, MODEL_CONFIG
+from utils.optimization import ModelOptimizer, ImageProcessor, PerformanceProfiler
 
 class IntegratedPipeline:
     """Full license plate recognition pipeline"""
@@ -27,6 +28,12 @@ class IntegratedPipeline:
         self.device = torch.device(device)
         self.char_mapping = ALL_CHARS
         
+        # Initialize performance profiler
+        self.profiler = PerformanceProfiler()
+        
+        # Initialize optimized image processor
+        self.image_processor = ImageProcessor()
+        
         # Initialize detection module
         self.detector = YOLOv5Detector(detection_model_path, device)
         
@@ -36,6 +43,9 @@ class IntegratedPipeline:
         
         # Load models
         self._load_models(recognition_model_path, baseline_model_path)
+        
+        # Apply optimizations
+        self._apply_optimizations()
         
     def _load_models(self, recognition_path, baseline_path):
         """Load recognition models"""
@@ -62,6 +72,17 @@ class IntegratedPipeline:
             except Exception as e:
                 print(f"Failed to load baseline model: {e}")
     
+    def _apply_optimizations(self):
+        """Apply CPU optimizations to models"""
+        if self.baseline_model:
+            self.baseline_model = ModelOptimizer.optimize_for_cpu(self.baseline_model)
+        
+        if self.recognition_model:
+            self.recognition_model = ModelOptimizer.optimize_for_cpu(self.recognition_model)
+        
+        # Set optimal CPU settings
+        torch.set_num_threads(2)
+    
     def detect_and_recognize(self, image_path, use_pdlpr=True):
         """
         Full pipeline: detection + recognition
@@ -79,10 +100,14 @@ class IntegratedPipeline:
             return results
         
         # Step 1: Detect license plates
+        self.profiler.start_timer('detection')
         detections = self.detector.detect_plates(image)
+        self.profiler.end_timer('detection')
         
         # Step 2: Extract plate regions
+        self.profiler.start_timer('cropping')
         plate_crops = self.detector.crop_plates(image, detections)
+        self.profiler.end_timer('cropping')
         
         # Step 3: Recognize characters in each plate
         for i, plate_data in enumerate(plate_crops):
@@ -91,9 +116,12 @@ class IntegratedPipeline:
             detection_confidence = plate_data['confidence']
             
             # Recognize characters
+            self.profiler.start_timer('recognition')
             plate_text, recognition_confidence, method = self._recognize_plate(
                 plate_image, use_pdlpr
             )
+            self.profiler.end_timer('recognition')
+            self.profiler.increment_counter('plates_processed')
             
             result = {
                 'plate_text': plate_text,
@@ -206,6 +234,14 @@ class IntegratedPipeline:
                 f.write("\n")
         
         print(f"Results saved to {output_dir}")
+    
+    def get_performance_stats(self):
+        """Get performance statistics"""
+        return self.profiler.get_stats()
+    
+    def print_performance_stats(self):
+        """Print performance statistics"""
+        self.profiler.print_stats()
 
 def create_pipeline(detection_model=None, recognition_model=None, baseline_model=None):
     """Factory function to create integrated pipeline"""
