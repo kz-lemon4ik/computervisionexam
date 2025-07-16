@@ -1,25 +1,61 @@
 # Python
 __pycache__/
 *.py[cod]
+*$py.class
 *.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
 
 # Virtual environments
 venv/
 env/
-
-# Data files
-data/raw/
-*.csv
-*.json
-
-# Model files
-models/*.pth
-models/*.pt
+ENV/
 
 # IDE
 .vscode/
 .idea/
+*.swp
+*.swo
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Data
+data/raw/*.tar.xz
+data/raw/*.zip
+data/processed/
+*.npz
+*.csv
+*.json
+
+# Models
+models/*.pth
+models/*.pt
+models/optimized/
+
+# Output
+demo_images/output/
+results/
+logs/
 
 # OS
 .DS_Store
 Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
