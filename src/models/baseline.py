@@ -8,8 +8,7 @@ import time
 from pathlib import Path
 import sys
 sys.path.append('src')
-from utils.metrics import MetricsTracker
-from utils.config import TRAIN_CONFIG, MODEL_CONFIG
+from data.data_loader import CCPDDataLoader, CCPDDataset
 
 class SyntheticDataset(Dataset):
     """Simple synthetic dataset for baseline training"""
@@ -90,10 +89,24 @@ class Trainer:
     def train_epoch(self, dataloader):
         """Train one epoch"""
         self.model.train()
-        metrics = MetricsTracker()
+        total_loss = 0
+        num_batches = 0
         
-        for batch_idx, (images, labels) in enumerate(dataloader):
-            images, labels = images.to(self.device), labels.to(self.device)
+        for batch_idx, batch_data in enumerate(dataloader):
+            if isinstance(batch_data, dict):
+                images = batch_data['image']
+                labels = batch_data['chars']
+            else:
+                images, labels = batch_data
+                
+            images = images.to(self.device)
+            labels = labels.to(self.device)
+            
+            # Handle image tensor dimensions
+            if len(images.shape) == 3:
+                images = images.unsqueeze(0)
+            if images.shape[1] != 3:
+                images = images.permute(0, 3, 1, 2)
             
             outputs = self.model(images)
             
@@ -106,27 +119,47 @@ class Trainer:
             loss.backward()
             self.optimizer.step()
             
-            # Update metrics
-            metrics.update(outputs, labels, loss.item())
+            total_loss += loss.item()
+            num_batches += 1
             
             if batch_idx % 10 == 0:
-                print(f'Batch {batch_idx}: {metrics.get_summary()}')
+                print(f'Batch {batch_idx}: Loss = {loss.item():.4f}')
         
-        return metrics.compute()['avg_loss']
+        return total_loss / num_batches if num_batches > 0 else 0
     
     def evaluate(self, dataloader):
         """Evaluate model"""
         self.model.eval()
-        metrics = MetricsTracker()
+        correct_sequences = 0
+        total_sequences = 0
         
         with torch.no_grad():
-            for images, labels in dataloader:
-                images, labels = images.to(self.device), labels.to(self.device)
+            for batch_data in dataloader:
+                if isinstance(batch_data, dict):
+                    images = batch_data['image']
+                    labels = batch_data['chars']
+                else:
+                    images, labels = batch_data
+                
+                images = images.to(self.device)
+                labels = labels.to(self.device)
+                
+                # Handle image tensor dimensions
+                if len(images.shape) == 3:
+                    images = images.unsqueeze(0)
+                if images.shape[1] != 3:
+                    images = images.permute(0, 3, 1, 2)
+                
                 outputs = self.model(images)
-                metrics.update(outputs, labels)
+                
+                # Calculate sequence accuracy
+                predicted = torch.argmax(outputs, dim=2)
+                sequence_correct = torch.all(predicted == labels, dim=1)
+                correct_sequences += sequence_correct.sum().item()
+                total_sequences += labels.size(0)
         
-        eval_metrics = metrics.compute()
-        return eval_metrics['sequence_accuracy'] * 100
+        accuracy = (correct_sequences / total_sequences) * 100 if total_sequences > 0 else 0
+        return accuracy
     
     def train(self, train_loader, val_loader, epochs=5):
         """Full training loop"""
@@ -157,21 +190,52 @@ def main():
     parser.add_argument('--batch_size', type=int, default=16, help='Batch size')
     args = parser.parse_args()
     
-    device = torch.device('cpu')
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f'Using device: {device}')
+    if device.type == 'cuda':
+        print(f'GPU: {torch.cuda.get_device_name(0)}')
     
     model = BaselineCNN()
     trainer = Trainer(model, device)
     
     if args.train:
-        print("Creating synthetic dataset...")
-        train_dataset = SyntheticDataset(num_samples=1000)
-        val_dataset = SyntheticDataset(num_samples=200)
-        
-        train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
-        val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False)
-        
-        trainer.train(train_loader, val_loader, epochs=args.epochs)
+        data_path = "data/processed/ccpd_subset"
+        if Path(data_path).exists():
+            print("Loading CCPD dataset...")
+            loader = CCPDDataLoader(data_path)
+            annotations = loader.load_dataset(max_samples=2000)
+            
+            if annotations:
+                train_data, val_data = loader.get_train_val_split(annotations, val_ratio=0.2)
+                
+                train_dataset = CCPDDataset(train_data)
+                val_dataset = CCPDDataset(val_data)
+                
+                train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
+                val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False)
+                
+                print(f"Training samples: {len(train_data)}")
+                print(f"Validation samples: {len(val_data)}")
+                
+                trainer.train(train_loader, val_loader, epochs=args.epochs)
+            else:
+                print("No annotations found, using synthetic data...")
+                train_dataset = SyntheticDataset(num_samples=1000)
+                val_dataset = SyntheticDataset(num_samples=200)
+                
+                train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
+                val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False)
+                
+                trainer.train(train_loader, val_loader, epochs=args.epochs)
+        else:
+            print("CCPD data not found, using synthetic dataset...")
+            train_dataset = SyntheticDataset(num_samples=1000)
+            val_dataset = SyntheticDataset(num_samples=200)
+            
+            train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
+            val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False)
+            
+            trainer.train(train_loader, val_loader, epochs=args.epochs)
     
     if args.evaluate:
         model_path = 'models/baseline_model.pth'

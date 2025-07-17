@@ -14,15 +14,15 @@ def explore_ccpd_dataset():
     """Basic exploration of CCPD dataset"""
     
     # Dataset path
-    archive_path = "data/raw/CCPD2019.tar.xz"
+    data_path = "data/processed/ccpd_subset"
     
-    if not Path(archive_path).exists():
-        print(f"Dataset not found at {archive_path}")
-        print("Please download CCPD dataset first")
+    if not Path(data_path).exists():
+        print(f"Dataset not found at {data_path}")
+        print("Please check dataset path")
         return
     
     # Initialize loader
-    loader = CCPDDataLoader(archive_path)
+    loader = CCPDDataLoader(data_path)
     
     print("CCPD Dataset Exploration")
     print("=" * 40)
@@ -39,6 +39,9 @@ def explore_ccpd_dataset():
     print(f"  Total vocabulary: {len(loader.all_chars)} characters")
     print()
     
+    # Load actual dataset
+    annotations = loader.load_dataset(max_samples=1000)
+    
     print("Sample filename parsing:")
     for i, filename in enumerate(sample_filenames, 1):
         print(f"Sample {i}:")
@@ -49,9 +52,29 @@ def explore_ccpd_dataset():
             print(f"  Bbox shape: {result['bbox'].shape}")
         print()
     
-    print("Dataset structure:")
+    if annotations:
+        print(f"Loaded {len(annotations)} samples")
+        
+        # Character statistics
+        char_counts = {}
+        plate_lengths = []
+        
+        for ann in annotations[:100]:  # Sample for stats
+            for char in ann['characters']:
+                char_counts[char] = char_counts.get(char, 0) + 1
+            plate_lengths.append(len(ann['characters']))
+        
+        print(f"Average plate length: {sum(plate_lengths)/len(plate_lengths):.1f}")
+        print(f"Most common characters: {sorted(char_counts.items(), key=lambda x: x[1], reverse=True)[:10]}")
+        
+        # Train/val split test
+        train_data, val_data = loader.get_train_val_split(annotations)
+        print(f"Train samples: {len(train_data)}")
+        print(f"Validation samples: {len(val_data)}")
+    
+    print("\nDataset structure:")
     print("  Format: Area-AgentType-TimeOfDay&Province_coordinates-bbox_coordinates-landmarks-characters-brightness-blur.jpg")
-    print("  Archive format: tar.xz compressed")
+    print("  Processing: Reduced subset for development")
     print("  Image format: JPEG")
 
 if __name__ == "__main__":

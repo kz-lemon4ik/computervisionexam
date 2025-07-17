@@ -58,6 +58,47 @@ def test_character_mapping():
     
     return True
 
+def test_dataset_loading():
+    """Test loading actual dataset"""
+    from pathlib import Path
+    
+    data_path = "data/processed/ccpd_subset"
+    
+    print(f"\nTesting dataset loading from {data_path}...")
+    
+    if not Path(data_path).exists():
+        print(f"✗ Dataset path not found: {data_path}")
+        return False
+        
+    loader = CCPDDataLoader(data_path)
+    
+    try:
+        annotations = loader.load_dataset(max_samples=10)
+        
+        if annotations:
+            print(f"✓ Loaded {len(annotations)} samples")
+            
+            # Test first annotation
+            first = annotations[0]
+            print(f"  Sample plate: {first['plate_text']}")
+            print(f"  Characters: {first['characters']}")
+            print(f"  Image path exists: {Path(first['image_path']).exists()}")
+            
+            # Test train/val split
+            train_data, val_data = loader.get_train_val_split(annotations)
+            print(f"  Train samples: {len(train_data)}")
+            print(f"  Val samples: {len(val_data)}")
+            
+            print("✓ Dataset loading tests passed")
+            return True
+        else:
+            print("✗ No annotations loaded")
+            return False
+            
+    except Exception as e:
+        print(f"✗ Dataset loading failed: {e}")
+        return False
+
 if __name__ == "__main__":
     print("CCPD Data Loader Tests")
     print("=" * 30)
@@ -65,6 +106,7 @@ if __name__ == "__main__":
     success = True
     success &= test_filename_parsing()
     success &= test_character_mapping()
+    success &= test_dataset_loading()
     
     print("\n" + "=" * 30)
     if success:
