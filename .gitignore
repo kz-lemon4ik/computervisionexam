@@ -38,6 +38,7 @@ ENV/
 data/raw/*.tar.xz
 data/raw/*.zip
 data/processed/
+data/yolo/
 *.npz
 *.csv
 *.json
@@ -46,11 +47,19 @@ data/processed/
 models/*.pth
 models/*.pt
 models/optimized/
+*.pt
+yolov5*.pt
+yolo11*.pt
 
 # Output
-demo_images/output/
+demo_images/
+runs/
 results/
 logs/
+
+# Training artifacts
+train_yolo_simple.py
+debug_*.py
 
 # OS
 .DS_Store
