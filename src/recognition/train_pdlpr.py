@@ -12,6 +12,7 @@ from pathlib import Path
 sys.path.append('src')
 from recognition.pdlpr_model import create_pdlpr_model, PDLPRTrainer
 from models.baseline import SyntheticDataset
+from data.data_loader import CCPDDataLoader, CCPDDataset
 from utils.metrics import MetricsTracker
 from utils.config import TRAIN_CONFIG, ALL_CHARS
 
@@ -20,8 +21,10 @@ def train_pdlpr(epochs=20, batch_size=16, save_dir='models'):
     print("Training PDLPR model...")
     
     # Setup device
-    device = torch.device('cpu')  # For VM compatibility
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Using device: {device}")
+    if device.type == 'cuda':
+        print(f"GPU: {torch.cuda.get_device_name(0)}")
     
     # Create model
     model = create_pdlpr_model(
@@ -32,8 +35,26 @@ def train_pdlpr(epochs=20, batch_size=16, save_dir='models'):
     
     # Create datasets
     print("Creating datasets...")
-    train_dataset = SyntheticDataset(num_samples=2000, img_size=(64, 128))
-    val_dataset = SyntheticDataset(num_samples=400, img_size=(64, 128))
+    data_path = "data/processed/ccpd_subset"
+    
+    if Path(data_path).exists():
+        print("Loading CCPD dataset...")
+        loader = CCPDDataLoader(data_path)
+        annotations = loader.load_dataset(max_samples=1500)
+        
+        if annotations:
+            train_data, val_data = loader.get_train_val_split(annotations, val_ratio=0.2)
+            train_dataset = CCPDDataset(train_data)
+            val_dataset = CCPDDataset(val_data)
+            print(f"Using CCPD data: {len(train_data)} train + {len(val_data)} val")
+        else:
+            print("CCPD data not available, using synthetic data...")
+            train_dataset = SyntheticDataset(num_samples=2000, img_size=(64, 128))
+            val_dataset = SyntheticDataset(num_samples=400, img_size=(64, 128))
+    else:
+        print("CCPD data not found, using synthetic data...")
+        train_dataset = SyntheticDataset(num_samples=2000, img_size=(64, 128))
+        val_dataset = SyntheticDataset(num_samples=400, img_size=(64, 128))
     
     train_loader = DataLoader(
         train_dataset, 
@@ -58,7 +79,17 @@ def train_pdlpr(epochs=20, batch_size=16, save_dir='models'):
         model.train()
         train_metrics = MetricsTracker()
         
-        for batch_idx, (images, labels) in enumerate(train_loader):
+        for batch_idx, batch_data in enumerate(train_loader):
+            if isinstance(batch_data, dict):
+                images = batch_data['image']
+                labels = batch_data['chars']
+            else:
+                images, labels = batch_data
+            
+            # Fix image dimensions: (B, H, W, C) -> (B, C, H, W)
+            if len(images.shape) == 4 and images.shape[-1] == 3:
+                images = images.permute(0, 3, 1, 2)
+            
             loss = trainer.train_step(images, labels)
             
             # For metrics, we need predictions
@@ -74,7 +105,17 @@ def train_pdlpr(epochs=20, batch_size=16, save_dir='models'):
         val_metrics = MetricsTracker()
         
         with torch.no_grad():
-            for images, labels in val_loader:
+            for batch_data in val_loader:
+                if isinstance(batch_data, dict):
+                    images = batch_data['image']
+                    labels = batch_data['chars']
+                else:
+                    images, labels = batch_data
+                
+                # Fix image dimensions: (B, H, W, C) -> (B, C, H, W)
+                if len(images.shape) == 4 and images.shape[-1] == 3:
+                    images = images.permute(0, 3, 1, 2)
+                
                 images, labels = images.to(device), labels.to(device)
                 outputs = model(images)
                 val_metrics.update(outputs, labels)
