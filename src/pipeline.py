@@ -10,11 +10,11 @@ from pathlib import Path
 import sys
 
 sys.path.append('src')
-from detection.yolo_model import YOLOv5Detector
+from detection.yolo_inference import YOLOv5Inference
 from recognition.pdlpr_model import create_pdlpr_model, PDLPRTrainer
+from recognition.pdlpr_inference import PDLPRInference
 from models.baseline import BaselineCNN, Trainer
 from utils.config import ALL_CHARS, MODEL_CONFIG
-from utils.optimization import ModelOptimizer, ImageProcessor, PerformanceProfiler
 
 class IntegratedPipeline:
     """Full license plate recognition pipeline"""

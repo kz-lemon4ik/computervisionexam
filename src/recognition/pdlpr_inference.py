@@ -73,18 +73,39 @@ class PDLPRInference:
         predictions = self.trainer.predict(processed_image)
         
         # Convert predictions to text
-        text = self.decode_predictions(predictions[0])
+        if predictions is not None and len(predictions) > 0:
+            # Handle different prediction formats
+            pred_data = predictions[0]
+            if hasattr(pred_data, 'cpu'):
+                pred_data = pred_data.cpu().numpy()
+            text = self.decode_predictions(pred_data)
+        else:
+            text = ""
         
         return text
     
     def decode_predictions(self, predictions):
         """Convert predicted indices to text"""
         text = ""
-        for idx in predictions:
-            if 0 <= idx < len(self.chars):
-                text += self.chars[idx]
+        try:
+            # Handle different prediction formats
+            if hasattr(predictions, '__iter__'):
+                for idx in predictions:
+                    idx_val = int(idx) if hasattr(idx, '__int__') else idx
+                    if 0 <= idx_val < len(self.chars):
+                        text += self.chars[idx_val]
+                    else:
+                        text += "?"  # Unknown character
             else:
-                text += "?"  # Unknown character
+                # Single prediction
+                idx_val = int(predictions) if hasattr(predictions, '__int__') else predictions
+                if 0 <= idx_val < len(self.chars):
+                    text += self.chars[idx_val]
+                else:
+                    text += "?"
+        except Exception as e:
+            print(f"Error decoding predictions: {e}")
+            text = "ERROR"
         
         return text
     

@@ -16,7 +16,7 @@ from data.data_loader import CCPDDataLoader, CCPDDataset
 from utils.metrics import MetricsTracker
 from utils.config import TRAIN_CONFIG, ALL_CHARS
 
-def train_pdlpr(epochs=20, batch_size=16, save_dir='models'):
+def train_pdlpr(epochs=20, batch_size=16, save_dir='models', lr=0.001):
     """Train PDLPR model"""
     print("Training PDLPR model...")
     
@@ -32,6 +32,7 @@ def train_pdlpr(epochs=20, batch_size=16, save_dir='models'):
         sequence_length=7
     )
     trainer = PDLPRTrainer(model, device)
+    trainer.optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     
     # Create datasets
     print("Creating datasets...")
@@ -149,6 +150,7 @@ def main():
     parser = argparse.ArgumentParser(description='Train PDLPR model')
     parser.add_argument('--epochs', type=int, default=20, help='Number of epochs')
     parser.add_argument('--batch_size', type=int, default=16, help='Batch size')
+    parser.add_argument('--lr', type=float, default=0.001, help='Learning rate')
     parser.add_argument('--save_dir', type=str, default='models', help='Save directory')
     args = parser.parse_args()
     
@@ -158,6 +160,7 @@ def main():
     train_pdlpr(
         epochs=args.epochs,
         batch_size=args.batch_size,
+        lr=args.lr,
         save_dir=args.save_dir
     )
 
