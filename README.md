@@ -1,8 +1,8 @@
-# License Plate Recognition and Reconstruction
+# License Plate Recognition System
 
 **Computer Vision Project (A.A. 2024-2025)**
 
-Two-stage deep learning pipeline for license plate recognition using YOLOv5 for detection and PDLPR for character recognition on the CCPD (Chinese City Parking Dataset).
+A comprehensive two-stage deep learning pipeline for automatic license plate recognition combining YOLOv5 object detection with PDLPR character recognition, trained and evaluated on the CCPD dataset.
 
 ## Project Overview
 
@@ -30,7 +30,7 @@ Input Image → YOLOv5 Detection → Plate ROI → PDLPR Recognition → Output 
 
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/kz-lemon4ik/computervisionexam.git
 cd computervisionexam
 
 # Install dependencies
@@ -40,20 +40,23 @@ pip install -r requirements.txt
 python scripts/validate_setup.py
 ```
 
-### Basic Usage
+### System Demonstration
 
 ```bash
-# Run demo with baseline model
-python main.py --demo
+# Complete system demonstration (recommended)
+python final_demo.py --demo
 
-# Run demo with integrated pipeline
-python main.py --demo --use_pipeline
+# Batch evaluation on dataset
+python final_demo.py --evaluate data/processed/ccpd_subset --max_images 50
 
-# Process single image
-python main.py --input image.jpg --output result.txt
+# Process specific images
+python final_demo.py --images path/to/image1.jpg path/to/image2.jpg
 
-# Process with integrated pipeline
-python main.py --input image.jpg --use_pipeline
+# Integrated pipeline with visualization
+python integrated_pipeline.py --demo
+
+# Comprehensive evaluation
+python scripts/comprehensive_evaluation.py
 ```
 
 ## Training
@@ -117,9 +120,9 @@ python scripts/optimize_models.py
 computervisionexam/
 ├── README.md                 # Project documentation
 ├── requirements.txt          # Dependencies
-├── main.py                   # Main entry point
-├── demo.py                   # Simple demo script
-├── run_tests.py             # Test runner
+├── final_demo.py            # Main demonstration script
+├── integrated_pipeline.py   # Complete pipeline implementation
+├── simple_pipeline.py       # Simplified pipeline version
 │
 ├── src/                     # Source code
 │   ├── data/                # Data loading and preprocessing
@@ -145,9 +148,8 @@ computervisionexam/
 │
 ├── scripts/                 # Utility scripts
 │   ├── prepare_yolo_data.py # YOLO data preparation
-│   ├── evaluate_pipeline.py # Pipeline evaluation
-│   ├── optimize_models.py   # Model optimization
-│   ├── validate_setup.py    # Setup validation
+│   ├── comprehensive_evaluation.py # Complete system evaluation
+│   ├── cleanup_results.py   # Clean demo files and results
 │   └── __init__.py
 │
 ├── tests/                   # Test suite
@@ -173,6 +175,7 @@ computervisionexam/
 ## Dataset
 
 The project uses the **CCPD (Chinese City Parking Dataset)** which contains:
+
 - 250,000+ vehicle images with license plates
 - Chinese license plate annotations
 - Bounding box coordinates
@@ -184,13 +187,14 @@ Download the dataset and place `CCPD2019.tar.xz` in the `data/raw/` directory.
 
 ### Current Results
 
-| Model | Character Accuracy | Sequence Accuracy | Inference Time |
-|-------|-------------------|-------------------|----------------|
-| Baseline CNN | ~75% | ~60% | 0.015s |
-| PDLPR | ~90% | ~80% | 0.025s |
-| Integrated Pipeline | ~85% | ~75% | 0.040s |
+| Component           | Metric             | Performance     |
+| ------------------- | ------------------ | --------------- |
+| YOLOv5 Detection    | mAP@0.5            | 99.5%           |
+| PDLPR Recognition   | Character Accuracy | 75.9%           |
+| PDLPR Recognition   | Sequence Accuracy  | 10.6%           |
+| End-to-end Pipeline | Processing Time    | ~67ms per image |
 
-*Note: Results are on synthetic test data. Real CCPD performance may vary.*
+_Results obtained on CCPD validation set with real license plate images._
 
 ## Development Workflow
 
@@ -215,13 +219,15 @@ Download the dataset and place `CCPD2019.tar.xz` in the `data/raw/` directory.
 ### Common Issues
 
 **Import Errors**: Ensure `src/` is in Python path
+
 ```bash
 export PYTHONPATH="${PYTHONPATH}:src"
 ```
 
 **Memory Issues**: Reduce batch size in training scripts
 
-**Missing Dependencies**: 
+**Missing Dependencies**:
+
 ```bash
 pip install -r requirements.txt
 ```
@@ -237,8 +243,9 @@ pip install -r requirements.txt
 ## Academic Context
 
 This project fulfills requirements for computer vision coursework:
+
 - **Dataset**: CCPD (academic standard)
-- **Architecture**: Two-stage detection + recognition pipeline  
+- **Architecture**: Two-stage detection + recognition pipeline
 - **Evaluation**: Comprehensive metrics and baseline comparison
 - **Documentation**: Complete technical documentation
 

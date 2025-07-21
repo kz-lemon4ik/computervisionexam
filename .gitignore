@@ -1,70 +1,44 @@
-# Python
 __pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-
-# Virtual environments
+.venv/
 venv/
 env/
 ENV/
-
-# IDE
 .vscode/
 .idea/
 *.swp
 *.swo
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# Data
-data/raw/*.tar.xz
-data/raw/*.zip
-data/processed/
-data/yolo/
+data/
+!data/.gitkeep
 *.npz
 *.csv
-*.json
-
-# Models
-models/*.pth
-models/*.pt
-models/optimized/
+models/
+!models/.gitkeep
+*.pth
 *.pt
 yolov5*.pt
 yolo11*.pt
-
-# Output
 demo_images/
+!demo_images/.gitkeep
 runs/
+!runs/.gitkeep
 results/
+!results/.gitkeep
 logs/
-
-# Training artifacts
+!logs/.gitkeep
+*.json
+!package.json
 train_yolo_simple.py
 debug_*.py
-
-# OS
+explore_*.py
+test_*.py
+!tests/test_*.py
+evaluation_results.json
+comprehensive_evaluation.json
+final_results.json
+presentation_results.json
+.venv/
+*.pyc
 .DS_Store
 Thumbs.db
-
-# Temporary files
 *.tmp
 *.temp
